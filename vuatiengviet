@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trò Chơi Lật Hình - Bản Full</title>
+    <style>
+        :root {
+            --blue-team: #2196F3;
+            --red-team: #FF5252;
+            --bg-overlay: rgba(255, 255, 255, 0.9);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Comic Sans MS', 'Segoe UI', sans-serif;
+            /* Hình nền giáo dục dễ thương */
+            background: url('https://img.freepik.com/free-vector/hand-drawn-education-pattern-background_23-2149090623.jpg') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* Cấm cuộn */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .main-container {
+            background-color: var(--bg-overlay);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            position: relative;
+        }
+
+        h1 {
+            margin: 5px 0;
+            font-size: 1.8rem;
+            color: #E91E63;
+            text-shadow: 2px 2px 0px #fff;
+            text-transform: uppercase;
+        }
+
+        /* --- BẢNG ĐIỂM --- */
+        .scoreboard {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 95%;
+            max-width: 900px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            margin-bottom: 10px;
+            flex-shrink: 0;
+            border: 2px solid #ddd;
+        }
+
+        .team-score {
+            text-align: center;
+            padding: 5px 20px;
+            border-radius: 12px;
+            min-width: 140px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .team-blue { border: 3px solid var(--blue-team); color: var(--blue-team); }
+        .team-red { border: 3px solid var(--red-team); color: var(--red-team); }
+
+        .team-score.active {
+            background-color: #e3f2fd;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(33, 150, 243, 0.4);
+            z-index: 10;
+        }
+        .team-red.active {
+            background-color: #ffebee;
+            box-shadow: 0 0 15px rgba(244, 67, 54, 0.4);
+        }
+
+        .score-number { font-size: 2rem; font-weight: 800; }
+        .team-name { font-weight: bold; font-size: 1.1rem; }
+        .turn-indicator { font-weight: bold; font-size: 1.2rem; color: #555; }
+
+        /* --- LƯỚI GAME --- */
+        .grid-wrapper {
+            flex-grow: 1;
+            width: 100%;
+display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 12px;
+            width: 100%;
+            max-width: 1000px;
+            height: 100%;
+            max-height: 80vh;
+        }
+
+        .card {
+            background-color: transparent;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            border-radius: 12px;
+        }
+
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card.matched { visibility: hidden; opacity: 0; transition: opacity 0.5s; }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        .card-front {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            font-size: 2.5rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            border: 2px solid white;
+        }
+
+        .card-back {
+            background-color: white;
+            transform: rotateY(180deg);
+            border: 3px solid #FF9800;
+            font-size: 3.5rem;
+        }
+
+        /* --- POPUP CHUNG (MODAL) --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 0 25px rgba(255,255,255,0.4);
+            border: 5px solid #FFC107;
+            animation: popIn 0.5s ease;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* Input Styles */
+        .input-group { margin: 15px 0; text-align: left; }
+.input-group label { display: block; font-weight: bold; margin-bottom: 5px; }
+        .input-group input {
+            width: 100%; padding: 12px;
+            border: 2px solid #ddd; border-radius: 8px; font-size: 1.1rem;
+        }
+        
+        /* Button Styles */
+        .start-btn {
+            background: linear-gradient(to right, #56ab2f, #a8e063);
+            color: white;
+            padding: 12px 40px; border: none; border-radius: 30px;
+            font-size: 1.3rem; cursor: pointer; font-weight: bold;
+            transition: transform 0.2s;
+            margin-top: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .start-btn:hover { transform: scale(1.05); }
+
+        .sound-control {
+            position: absolute; bottom: 15px; right: 15px;
+            background: white; padding: 8px 15px; border-radius: 20px;
+            cursor: pointer; opacity: 0.8; font-size: 0.9rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-weight: bold;
+            z-index: 100;
+        }
+
+        /* --- STYLE CHO MÀN HÌNH KẾT THÚC & HIỆU ỨNG --- */
+        .end-game-content {
+            border: 6px solid #FFD700;
+            background: linear-gradient(to bottom, #fff, #fffbea);
+            position: relative;
+        }
+
+        .trophy-icon {
+            width: 120px;
+            height: auto;
+            display: block;
+            margin: 0 auto 10px auto;
+            animation: bounce 2s infinite; 
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-30px); }
+            60% { transform: translateY(-15px); }
+        }
+
+        /* Pháo giấy */
+        .confetti-piece {
+            position: absolute;
+            width: 12px; height: 12px;
+            top: -20px;
+            opacity: 0.8;
+            animation: fall-down linear forwards;
+            z-index: 1500;
+        }
+
+        @keyframes fall-down {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                top: 100%;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <audio id="bg-music" loop>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="modal-overlay" id="start-modal">
+        <div class="modal-content">
+            <h2 style="color: #E91E63; margin-top:0;">🏆 CHUẨN BỊ THI ĐẤU 🏆</h2>
+            <div class="input-group">
+                <label for="team1-name" style="color: var(--blue-team)">Tên Đội 1 (Xanh):</label>
+                <input type="text" id="team1-name" value="Đội Xanh" placeholder="Nhập tên đội...">
+            </div>
+            <div class="input-group">
+                <label for="team2-name" style="color: var(--red-team)">Tên Đội 2 (Đỏ):</label>
+                <input type="text" id="team2-name" value="Đội Đỏ" placeholder="Nhập tên đội...">
+            </div>
+<button class="start-btn" onclick="startGame()">VÀO GAME! 🚀</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="end-modal" style="display: none; z-index: 2000;">
+        <div id="confetti-wrapper" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; overflow: hidden;"></div>
+
+        <div class="modal-content end-game-content">
+            <img src="https://cdn-icons-png.flaticon.com/512/1165/1165245.png" alt="Cúp Vàng" class="trophy-icon">
+            
+            <h2 id="winner-text" style="font-size: 1.8rem; margin: 10px 0;">CHÚC MỪNG!</h2>
+            
+            <div style="margin: 20px 0; font-size: 1.3rem; border-top: 1px dashed #ccc; padding-top: 15px;">
+                <p id="end-score-blue" style="color: var(--blue-team); font-weight: bold; margin: 5px 0;">Đội Xanh: 0</p>
+                <p id="end-score-red" style="color: var(--red-team); font-weight: bold; margin: 5px 0;">Đội Đỏ: 0</p>
+            </div>
+
+            <button class="start-btn" style="background: linear-gradient(to right, #FF9800, #F44336);" onclick="location.reload()">CHƠI VÁN MỚI 🔄</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <h1>VUI HỌC CÙNG CÔ NGỌC PHAN</h1>
+
+        <div class="scoreboard">
+            <div class="team-score team-blue active" id="score-blue-box">
+                <div class="team-name" id="name-display-1">Đội Xanh</div>
+                <div class="score-number" id="score-blue">0</div>
+            </div>
+            
+            <div class="turn-indicator">
+                Lượt: <span id="current-turn-text" style="color: var(--blue-team);">Đội Xanh</span>
+            </div>
+
+            <div class="team-score team-red" id="score-red-box">
+                <div class="team-name" id="name-display-2">Đội Đỏ</div>
+                <div class="score-number" id="score-red">0</div>
+            </div>
+        </div>
+
+        <div class="grid-wrapper">
+            <div class="grid-container" id="game-grid">
+                </div>
+        </div>
+        
+        <div class="sound-control" onclick="toggleMusic()">🔊 Bật/Tắt Nhạc</div>
+    </div>
+
+    <script>
+        // --- DỮ LIỆU GAME ---
+        const cardData = [
+            '🐶', '🐱', '🐭', '🐹', '🐰', 
+            '🦊', '🐻', '🐼', '🐨', '🐯'
+        ];
+
+        // --- BIẾN TOÀN CỤC ---
+        let cards = [];
+        let hasFlippedCard = false;
+        let lockBoard = false;
+        let firstCard, secondCard;
+        let turn = 'blue'; 
+        let scores = { blue: 0, red: 0 };
+        let teamNames = { blue: "Đội Xanh", red: "Đội Đỏ" };
+        let isMusicPlaying = false;
+
+        // --- DOM ELEMENTS ---
+        const bgMusic = document.getElementById('bg-music');
+        bgMusic.volume = 0.3; // Âm lượng vừa phải
+        
+        const grid = document.getElementById('game-grid');
+        const scoreBlueEl = document.getElementById('score-blue');
+const scoreRedEl = document.getElementById('score-red');
+        const scoreBlueBox = document.getElementById('score-blue-box');
+        const scoreRedBox = document.getElementById('score-red-box');
+        const turnText = document.getElementById('current-turn-text');
+        const nameDisplay1 = document.getElementById('name-display-1');
+        const nameDisplay2 = document.getElementById('name-display-2');
+        
+        // Modal elements
+        const startModal = document.getElementById('start-modal');
+        const endModal = document.getElementById('end-modal');
+        const winnerText = document.getElementById('winner-text');
+        const endScoreBlue = document.getElementById('end-score-blue');
+        const endScoreRed = document.getElementById('end-score-red');
+        const confettiWrapper = document.getElementById('confetti-wrapper');
+
+        // --- HÀM START GAME ---
+        function startGame() {
+            const t1 = document.getElementById('team1-name').value.trim();
+            const t2 = document.getElementById('team2-name').value.trim();
+            
+            if(t1) teamNames.blue = t1;
+            if(t2) teamNames.red = t2;
+
+            nameDisplay1.innerText = teamNames.blue;
+            nameDisplay2.innerText = teamNames.red;
+            
+            startModal.style.display = 'none';
+
+            // Cố gắng bật nhạc
+            bgMusic.play().then(() => {
+                isMusicPlaying = true;
+            }).catch(e => console.log("Cần tương tác để bật nhạc"));
+
+            initBoard();
+            updateScoreBoard();
+        }
+
+        function toggleMusic() {
+            if (isMusicPlaying) {
+                bgMusic.pause();
+                isMusicPlaying = false;
+            } else {
+                bgMusic.play();
+                isMusicPlaying = true;
+            }
+        }
+
+        // --- HÀM KHỞI TẠO BÀN CỜ ---
+        function initBoard() {
+            cards = [...cardData, ...cardData];
+            cards.sort(() => 0.5 - Math.random());
+
+            grid.innerHTML = '';
+            cards.forEach((content, index) => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.content = content;
+                
+                card.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-front">${index + 1}</div>
+                        <div class="card-back">${content}</div>
+                    </div>
+                `;
+                
+                card.addEventListener('click', flipCard);
+                grid.appendChild(card);
+            });
+        }
+
+        // --- LOGIC LẬT BÀI ---
+        function flipCard() {
+            if (lockBoard) return;
+            if (this === firstCard) return;
+
+            this.classList.add('flipped');
+
+            if (!hasFlippedCard) {
+                hasFlippedCard = true;
+                firstCard = this;
+return;
+            }
+
+            secondCard = this;
+            checkForMatch();
+        }
+
+        function checkForMatch() {
+            let isMatch = firstCard.dataset.content === secondCard.dataset.content;
+
+            if (isMatch) {
+                disableCards();
+                addScore();
+            } else {
+                unflipCards();
+            }
+        }
+
+        function disableCards() {
+            lockBoard = true;
+            setTimeout(() => {
+                firstCard.classList.add('matched');
+                secondCard.classList.add('matched');
+                resetBoard();
+                checkWin(); // Kiểm tra thắng sau mỗi lần đúng
+            }, 800);
+        }
+
+        function unflipCards() {
+            lockBoard = true;
+            setTimeout(() => {
+                firstCard.classList.remove('flipped');
+                secondCard.classList.remove('flipped');
+                switchTurn();
+                resetBoard();
+            }, 1200);
+        }
+
+        function addScore() {
+            scores[turn] += 10;
+            updateScoreBoard();
+        }
+
+        function switchTurn() {
+            turn = turn === 'blue' ? 'red' : 'blue';
+            updateScoreBoard();
+        }
+
+        function updateScoreBoard() {
+            scoreBlueEl.innerText = scores.blue;
+            scoreRedEl.innerText = scores.red;
+
+            if (turn === 'blue') {
+                scoreBlueBox.classList.add('active');
+                scoreRedBox.classList.remove('active');
+                turnText.innerText = teamNames.blue;
+                turnText.style.color = "var(--blue-team)";
+            } else {
+                scoreRedBox.classList.add('active');
+                scoreBlueBox.classList.remove('active');
+                turnText.innerText = teamNames.red;
+                turnText.style.color = "var(--red-team)";
+            }
+        }
+
+        function resetBoard() {
+            [hasFlippedCard, lockBoard] = [false, false];
+            [firstCard, secondCard] = [null, null];
+        }
+
+        // --- LOGIC CHIẾN THẮNG & HIỆU ỨNG ---
+        function checkWin() {
+            if (document.querySelectorAll('.card:not(.matched)').length === 0) {
+                setTimeout(() => {
+                    let title = "";
+                    if (scores.blue > scores.red) {
+                        title = `🎉 ${teamNames.blue.toUpperCase()} THẮNG! 🎉`;
+                        winnerText.style.color = "var(--blue-team)";
+                    } else if (scores.red > scores.blue) {
+                        title = `🎉 ${teamNames.red.toUpperCase()} THẮNG! 🎉`;
+                        winnerText.style.color = "var(--red-team)";
+                    } else {
+                        title = "😲 KẾT QUẢ HÒA! 😲";
+                        winnerText.style.color = "#FF9800";
+                    }
+
+                    winnerText.innerText = title;
+endScoreBlue.innerText = `${teamNames.blue}: ${scores.blue} điểm`;
+                    endScoreRed.innerText = `${teamNames.red}: ${scores.red} điểm`;
+
+                    // Hiện popup và bắn pháo giấy
+                    endModal.style.display = 'flex';
+                    launchConfetti();
+                }, 600);
+            }
+        }
+
+        function launchConfetti() {
+            confettiWrapper.innerHTML = '';
+            const colors = ['#FFD700', '#FF5252', '#2196F3', '#4CAF50', '#FF9800', '#E040FB'];
+            
+            for (let i = 0; i < 150; i++) {
+                const piece = document.createElement('div');
+                piece.classList.add('confetti-piece');
+                piece.style.left = Math.random() * 100 + '%'; 
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.animationDuration = (Math.random() * 2 + 2) + 's'; 
+                piece.style.animationDelay = Math.random() * 2 + 's';
+                confettiWrapper.appendChild(piece);
+            }
+        }
+    </script>
+</body>
+</html>
